@@ -1,4 +1,7 @@
+import { INITIAL_PAGE, LETTERBOXD_BASE_URL } from '@/app/constants';
+import { Movie } from '@/app/types';
 import * as cheerio from 'cheerio';
+import { NextRequest } from 'next/server';
 
 const fetchPage = async (url: string) => {
   try {
@@ -12,7 +15,7 @@ const fetchPage = async (url: string) => {
     const $ = cheerio.load(html);
     const moviePosters = $('li.poster-container>div.poster');
 
-    const movies: { name: string; path: string }[] = [];
+    const movies: Movie[] = [];
 
     moviePosters.each((_, element) => {
       const path = $(element).attr('data-film-slug');
@@ -30,9 +33,9 @@ const fetchPage = async (url: string) => {
   }
 };
 
-const fetchAllMovies = async () => {
+const fetchAllMovies = async (username: string) => {
   try {
-    const res = await fetch('https://letterboxd.com/nurcin/watchlist');
+    const res = await fetch(`${LETTERBOXD_BASE_URL}/${username}/watchlist`);
     const html = await res.text();
 
     if (!res.ok) {
@@ -44,7 +47,7 @@ const fetchAllMovies = async () => {
 
     if (!pages) {
       const movies = await fetchPage(
-        'https://letterboxd.com/nurcin/watchlist/page/1'
+        `${LETTERBOXD_BASE_URL}/${username}/watchlist/page/${INITIAL_PAGE}`
       );
       if (!movies) {
         return new Response('An error occurred', { status: 500 });
@@ -58,11 +61,13 @@ const fetchAllMovies = async () => {
 
     const allPages = await Promise.all(
       Array.from({ length: pages }, (_, i) =>
-        fetchPage('https://letterboxd.com/nurcin/watchlist/page/' + (i + 1))
+        fetchPage(
+          `${LETTERBOXD_BASE_URL}/${username}/watchlist/page/` + (i + 1)
+        )
       )
     );
 
-    console.log('All pages movies: ', allPages.flat().length);
+    // console.log('All pages movies: ', allPages.flat().length);
 
     return allPages.flat();
   } catch (error) {
@@ -70,8 +75,15 @@ const fetchAllMovies = async () => {
   }
 };
 
-export async function GET() {
-  const movies = await fetchAllMovies();
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const username = searchParams.get('username'); // query is "username" for /api/movie?username=...
+
+  if (!username) {
+    return new Response('An error occurred', { status: 500 });
+  }
+
+  const movies = await fetchAllMovies(username);
 
   if (!movies) {
     return new Response('An error occurred', { status: 500 });
