@@ -1,0 +1,1 @@
+export type Movie = { name: string; path: string };

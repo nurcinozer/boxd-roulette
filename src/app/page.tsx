@@ -1,6 +1,7 @@
 export default async function Home() {
-  const response = await fetch(`${process.env.URL}/api/movie`);
+  const response = await fetch(`${process.env.URL}/api/movie?username=nurcin`);
   const data = await response.json();
+  console.log(data);
 
   return (
     <div>
